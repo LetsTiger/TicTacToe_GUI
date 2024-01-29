@@ -248,4 +248,14 @@ class MainWindow(QMainWindow):
         self.ui = Ui_MainWindow()
         self.ui.setupUi(self)
 
+        self.buttons_spots = [self.ui.pushButton_1, 
+                              self.ui.pushButton_2,
+                              self.ui.pushButton_3,
+                              self.ui.pushButton_4,
+                              self.ui.pushButton_5,
+                              self.ui.pushButton_6,
+                              self.ui.pushButton_7,
+                              self.ui.pushButton_8,
+                              self.ui.pushButton_9]
+
         self.show()

@@ -49,6 +49,12 @@ class TicTacToeBoard:
     def make_move(self, position):
         """
         Platziert das Zeichen des aktuellen Spielers an der angegebenen Position auf dem Board.
+        Codierung:
+           -1 : error, game end
+            0 : positive move
+            1 : Bitte gib Ganzzahl ein
+            2 : gib Zahl zwischen 1-9 ein
+            3 : Feld belegt
 
         Parameters:
             position (int): Die Position auf dem Board, an der das Zeichen platziert werden soll.
@@ -60,15 +66,15 @@ class TicTacToeBoard:
         try:
             position = int(position)
         except:
-            return "\nBitte gib eine Ganzzahl ein."
+            return 1
         
         # Überprüfen ob die eingegebene Position zwischen 1 und 9 liegt - wenn nicht Fehlermeldung zurück
         if not (1 <= position <= 9):
-            return "\nBitte gib nur eine Zahl zwischen 1 und 9 ein."
+            return 2
         
         # Überprüfen ob die Position bereits belegt ist - wenn ja Fehlermeldung zurück
         if self.board[position - 1] != ' ':
-            return f"\nDieses Feld ({position}) ist bereits belegt! Bitte wähl eine anderes Feld."
+            return 3
         
         # Falls alle vorherigen Tests erfolgreich - Zeichen des aktuellen Spielers an die Position im Board setzen
         self.board[position - 1] = self.current_player
@@ -79,10 +85,10 @@ class TicTacToeBoard:
         elif self.current_player == self.players[1]:
             self.current_player = self.players[0]
         else:
-            return "Es ist ein Fehler aufgetreten bitte starte das Spiel neu!"
+            return -1
         
         # Wenn alles geklappt hat bestätigen, dass der Zug erfolgreich war
-        return "positive move"
+        return 0
 
     # Funktion zur Überprüfung ob es einen Gewinner gibt
     def is_winner(self):
@@ -172,7 +178,6 @@ class TicTacToeBoard:
             return None
 
 def local_game():
-    return
     new_board = TicTacToeBoard() # Neues Board erstellen
 
     while new_board.is_winner() is None and not new_board.is_board_full(): # Spiel geht solange es keinen Gewinner gibt und das Board nicht voll ist
