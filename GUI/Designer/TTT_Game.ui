@@ -237,7 +237,7 @@
        <enum>Qt::DefaultContextMenu</enum>
       </property>
       <property name="text">
-       <string>Z</string>
+       <string/>
       </property>
       <property name="checkable">
        <bool>false</bool>
@@ -274,7 +274,7 @@
        <enum>Qt::DefaultContextMenu</enum>
       </property>
       <property name="text">
-       <string>Z</string>
+       <string/>
       </property>
       <property name="checkable">
        <bool>false</bool>
@@ -313,9 +313,12 @@
        <enum>Qt::DefaultContextMenu</enum>
       </property>
       <property name="text">
-       <string>Z</string>
+       <string/>
       </property>
       <property name="checkable">
+       <bool>false</bool>
+      </property>
+      <property name="checked">
        <bool>false</bool>
       </property>
       <property name="autoExclusive">
@@ -325,6 +328,9 @@
        <bool>false</bool>
       </property>
       <property name="default">
+       <bool>false</bool>
+      </property>
+      <property name="flat">
        <bool>false</bool>
       </property>
      </widget>
@@ -350,7 +356,7 @@
        <enum>Qt::DefaultContextMenu</enum>
       </property>
       <property name="text">
-       <string>Z</string>
+       <string/>
       </property>
       <property name="checkable">
        <bool>false</bool>
@@ -387,7 +393,7 @@
        <enum>Qt::DefaultContextMenu</enum>
       </property>
       <property name="text">
-       <string>Z</string>
+       <string/>
       </property>
       <property name="checkable">
        <bool>false</bool>
@@ -426,7 +432,7 @@
        <enum>Qt::DefaultContextMenu</enum>
       </property>
       <property name="text">
-       <string>Z</string>
+       <string/>
       </property>
       <property name="checkable">
        <bool>false</bool>
@@ -463,7 +469,7 @@
        <enum>Qt::DefaultContextMenu</enum>
       </property>
       <property name="text">
-       <string>Z</string>
+       <string/>
       </property>
       <property name="checkable">
        <bool>false</bool>
@@ -502,7 +508,7 @@
        <enum>Qt::DefaultContextMenu</enum>
       </property>
       <property name="text">
-       <string>Z</string>
+       <string/>
       </property>
       <property name="checkable">
        <bool>false</bool>
@@ -539,7 +545,7 @@
        <enum>Qt::DefaultContextMenu</enum>
       </property>
       <property name="text">
-       <string>Z</string>
+       <string/>
       </property>
       <property name="checkable">
        <bool>false</bool>
