@@ -5,16 +5,20 @@ import GUI.Codes.ui_TTT_Game as GUI_GAME
 
 from PySide6.QtCore import QCoreApplication
 from PySide6.QtCore import QRunnable
+from PySide6.QtCore import QThreadPool
 import sys
 import Module.ttt_engine as engine
 from functools import partial
 
+import socket
+
 
 class Worker(QRunnable):
-    def __init__(self, function, args, kwargs):
+    def __init__(self, function, *args, **kwargs):
         super(Worker, self).__init__()
         self.args = args
         self.kwargs = kwargs
+        self.function = function
 
     #@pyqtSlot
     def run(self):
@@ -161,12 +165,12 @@ class ServerGame:
         self.done = False
 
         set_board(self.board, self.window_game.buttons_spots)
-        self.send_to_client(self.status, self.current_player, self.board)
+        self.connection.send(f"{self.status}{self.current_player}{''.join(self.board)}".encode() + b"END")
 
     def get_remote_move(self):
         while not self.done:
             # recieve move
-            rdata = ""
+            rdata = b""
             while True:
                 rdata += self.connection.recv(1024)
 
@@ -174,7 +178,7 @@ class ServerGame:
                     break
 
             data = rdata.split(b"END")[-2]
-
+            print(data)
             try:
                 move = int(data.decode())
             except Exception as ex:
@@ -200,7 +204,7 @@ class ServerGame:
     def remote_game_local_move(self, move):
         if self.current_player == self.starting_player:
             status, current_player, board = self.game.send(move)
-            if status == 0:
+            if status in (0, 4, 5, 6):
                 self.connection.send(f"{self.status}{self.current_player}{''.join(self.board)}".encode() + b"END")
             else:
                 change_error_message(status)
@@ -224,7 +228,7 @@ class ClientGame:
     def get_and_update(self):
         first = True
         while True:
-            rdata = ""
+            rdata = b""
             while True:
                 rdata += self.connection.recv(1024)
 
@@ -233,9 +237,12 @@ class ClientGame:
 
             if first:
                 # get initial conditions
-                data = rdata.split(b"END")[0]
+                rdata = rdata.split(b"END")[0]
             else:
-                data = rdata.split(b"END")[-2]
+                rdata = rdata.split(b"END")[-2]
+
+            data = rdata.decode()
+            print(data)
 
             try:
                 status, current_player, board_str = data[0], data[1], data[2:11]
@@ -243,7 +250,6 @@ class ClientGame:
                 if first:
                     self.symbol = current_player
             except:
-                print("test")
                 # send invalid input to provoke another message of current game state
                 self.connection.send("0".encode() + b"END")
                 continue
@@ -264,26 +270,59 @@ def host_remote_session():
         # open socket
         # bind address
 
-        window_game = GUI_GAME.MainWindow()
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.bind(("", 12345))
+        s.listen(5)
 
-        host_game = ServerGame(window_game, game, connection)
+        print("Warte client")
+
+        connection, address = s.accept()
+
+        window_game = GUI_GAME.MainWindow()
+        window_game.threadpool = QThreadPool()
+
+        game_gen = game()
+
+        host_game = ServerGame(window_game, game_gen, connection)
 
         # Buttons initialisieren
-        for i in range(len(window_game.buttons_spots)): 
-            window_game.buttons_spots[i].clicked.connect(partial(move_handler_local, window_game, game_gen, i+1))
+        for i in range(len(window_game.buttons_spots)):
+            window_game.buttons_spots[i].clicked.connect(partial(host_game.remote_game_local_move, i+1))
         
         window_game.ui.pushButton_10.clicked.connect(window_game.close)
         
         # start game
         host_game_loop = Worker(host_game.get_remote_move)
 
-        pass # Host a remote game
+        print("starting - Server")
+        window_game.threadpool.start(host_game_loop)
+
     except Exception as e:
         change_error_message(e)
 
 def join_remote_session():
     try:
-        pass # Join a remote game
+        # socket
+        connection = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        connection.connect(("127.0.0.1", 12345))
+
+        print("connected")
+
+        window_game = GUI_GAME.MainWindow()
+        window_game.threadpool = QThreadPool()
+
+        client_game = ClientGame(window_game, connection)
+
+        # Buttons initialisieren
+        for i in range(len(window_game.buttons_spots)):
+            window_game.buttons_spots[i].clicked.connect(partial(client_game.remote_game_client_move, i+1))
+        
+        window_game.ui.pushButton_10.clicked.connect(window_game.close)
+
+        client_game_loop = Worker(client_game.get_and_update)
+        print("starting - Client")
+        window_game.threadpool.start(client_game_loop)
+
     except Exception as e:
         change_error_message(e)
 
