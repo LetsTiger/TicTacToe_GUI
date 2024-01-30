@@ -202,12 +202,14 @@ class ServerGame:
             # set messages
 
     def remote_game_local_move(self, move):
+        print("start: ", self.starting_player)
         if self.current_player == self.starting_player:
-            status, current_player, board = self.game.send(move)
-            if status in (0, 4, 5, 6):
+            self.status, self.current_player, self.board = self.game.send(move)
+            if self.status in (0, 4, 5, 6):
                 self.connection.send(f"{self.status}{self.current_player}{''.join(self.board)}".encode() + b"END")
+                set_board(self.board, self.window_game.buttons_spots)
             else:
-                change_error_message(status)
+                change_error_message(self.status)
         else:
             change_error_message("not your turn")
 
@@ -246,10 +248,10 @@ class ClientGame:
 
             try:
                 status, current_player, board_str = data[0], data[1], data[2:11]
-                board = board_str.split("")
+                board = list(board_str)
                 if first:
                     self.symbol = current_player
-            except:
+            except Exception:
                 # send invalid input to provoke another message of current game state
                 self.connection.send("0".encode() + b"END")
                 continue
