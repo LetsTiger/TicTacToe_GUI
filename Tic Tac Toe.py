@@ -46,7 +46,7 @@ def game():
         else:
             yield (6, player, board.board)
 
-def set_board(board: list[str], buttons: list):
+def set_board(board: list, buttons):
     """
     setzt eingegebene buttons auf die Werte aus der Liste board
 
