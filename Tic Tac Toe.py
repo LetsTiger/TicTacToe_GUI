@@ -13,14 +13,13 @@ from functools import partial
 import socket
 
 
-class Worker(QRunnable):
+class Worker(QRunnable):    # for running nebeneinander
     def __init__(self, function, *args, **kwargs):
         super(Worker, self).__init__()
         self.args = args
         self.kwargs = kwargs
         self.function = function
 
-    #@pyqtSlot
     def run(self):
         self.function(*self.args, **self.kwargs)
 
@@ -154,7 +153,7 @@ def start_local_session():
         window_game.close()
         change_error_message(e)
 
-class ServerGame:
+class ServerGame:   # server
     def __init__(self, window_game, game, connection):
         self.window_game = window_game
         self.game = game
@@ -172,23 +171,26 @@ class ServerGame:
             # recieve move
             rdata = b""
             while True:
-                rdata += self.connection.recv(1024)
+                dat = self.connection.recv(1024)
+                if dat == None:
+                    return
+                rdata += dat
 
                 if rdata[-3:] == b"END":
                     break
 
             data = rdata.split(b"END")[-2]
-            print(data)
+            
             try:
                 move = int(data.decode())
             except Exception as ex:
-                change_error_message("Remote" + ex)
+                #change_error_message("Remote" + ex)
                 self.connection.send(f"8{self.current_player}{self.board}".encode() + b"END")
                 continue
 
             # right player
             if self.current_player == self.starting_player:
-                change_error_message("Remote" + "not their turn")
+                #change_error_message("Remote" + "not their turn")
                 self.connection.send(f"7{self.current_player}{''.join(self.board)}".encode() + b"END")
                 continue
 
@@ -199,40 +201,48 @@ class ServerGame:
             self.connection.send(f"{self.status}{self.current_player}{''.join(self.board)}".encode() + b"END")
 
             set_board(self.board, self.window_game.buttons_spots)
-            # set messages
+            self.window_game.ui.label_3.setText(QCoreApplication.translate("MainWindow", f"{self.current_player} ist an der Reihe", None))
 
     def remote_game_local_move(self, move):
-        print("start: ", self.starting_player)
         if self.current_player == self.starting_player:
             self.status, self.current_player, self.board = self.game.send(move)
             if self.status in (0, 4, 5, 6):
                 self.connection.send(f"{self.status}{self.current_player}{''.join(self.board)}".encode() + b"END")
                 set_board(self.board, self.window_game.buttons_spots)
+                self.window_game.ui.label_3.setText(QCoreApplication.translate("MainWindow", f"{self.current_player} ist an der Reihe", None))
+                self.window_game.ui.label_5.setText(QCoreApplication.translate("MainWindow", "", None))
             else:
-                change_error_message(self.status)
+                self.window_game.ui.label_5.setText(QCoreApplication.translate("MainWindow", f"{self.status}", None))
         else:
-            change_error_message("not your turn")
+            self.window_game.ui.label_5.setText(QCoreApplication.translate("MainWindow", "not your turn", None))
+            #change_error_message("not your turn")
 
-class ClientGame:
+class ClientGame:   # client
     def __init__(self, window_game, connection):
         self.connection = connection
         self.window_game = window_game
         self.myTurn = False
         self.board = []
-        self.symbol = ""
+        self.symbol = ""    # not own symbol
 
         self.done = False
 
     def remote_game_client_move(self, move):
         if isinstance(move, int) and 1 <= move <= 9 and self.myTurn:
             self.connection.send(str(move).encode() + b"END")
+        else:
+            #change_error_message("try again")
+            pass
 
     def get_and_update(self):
         first = True
         while True:
             rdata = b""
             while True:
-                rdata += self.connection.recv(1024)
+                dat = self.connection.recv(1024)
+                if dat == None:
+                    return
+                rdata += dat
 
                 if rdata[-3:] == b"END":
                     break
@@ -244,7 +254,6 @@ class ClientGame:
                 rdata = rdata.split(b"END")[-2]
 
             data = rdata.decode()
-            print(data)
 
             try:
                 status, current_player, board_str = data[0], data[1], data[2:11]
@@ -256,14 +265,16 @@ class ClientGame:
                 self.connection.send("0".encode() + b"END")
                 continue
 
-            if self.symbol == current_player:
-                self.myTurn = True
+            self.myTurn = bool(self.symbol != current_player)     # set turn
 
             first = False
 
             set_board(board, self.window_game.buttons_spots)
-            change_error_message(status + " | " + current_player)
-            #TODO:: set messages from data
+            self.window_game.ui.label_3.setText(QCoreApplication.translate("MainWindow", f"{current_player} ist an der Reihe", None))
+            if status in (0, 4, 5, 6):
+                self.window_game.ui.label_5.setText(QCoreApplication.translate("MainWindow", "", None))
+            else:
+                self.window_game.ui.label_5.setText(QCoreApplication.translate("MainWindow", f"{status}", None))
 
 
 
