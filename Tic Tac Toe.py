@@ -4,10 +4,21 @@ import GUI.Codes.ui_TTT_Hub as GUI_JOIN
 import GUI.Codes.ui_TTT_Game as GUI_GAME
 
 from PySide6.QtCore import QCoreApplication
+from PySide6.QtCore import QRunnable
 import sys
 import Module.ttt_engine as engine
 from functools import partial
 
+
+class Worker(QRunnable):
+    def __init__(self, function, args, kwargs):
+        super(Worker, self).__init__()
+        self.args = args
+        self.kwargs = kwargs
+
+    #@pyqtSlot
+    def run(self):
+        self.function(*self.args, **self.kwargs)
 
 def game():
     """
@@ -112,6 +123,10 @@ def change_error_message(message):
     window_ui.label_5.setText(f"{message}")
 
 def start_local_session():
+    """
+    Hauptfunktion für das Spielen auf lokalem Rechner
+
+    """
     try:
         game_gen = game()   # Generator mit der Funktion game erstellen
 
@@ -120,7 +135,7 @@ def start_local_session():
         for i in range(len(window_game.buttons_spots)): 
             window_game.buttons_spots[i].clicked.connect(partial(move_handler_local, window_game, game_gen, i+1))
         
-        window_game.ui.pushButton_10.clicked.connect(lambda: window_game.close())
+        window_game.ui.pushButton_10.clicked.connect(window_game.close)
         
         # erster Aufruf des Spiels um aktuelle Daten zu bekommen
         status, current_player, board = next(game_gen)
@@ -132,10 +147,136 @@ def start_local_session():
         window_game.ui.label_5.setText(QCoreApplication.translate("MainWindow", "", None))
 
     except Exception as e:
+        window_game.close()
         change_error_message(e)
+
+class ServerGame:
+    def __init__(self, window_game, game, connection):
+        self.window_game = window_game
+        self.game = game
+        self.status, self.current_player, self.board = next(game)
+        self.starting_player = self.current_player
+        self.connection = connection
+
+        self.done = False
+
+        set_board(self.board, self.window_game.buttons_spots)
+        self.send_to_client(self.status, self.current_player, self.board)
+
+    def get_remote_move(self):
+        while not self.done:
+            # recieve move
+            rdata = ""
+            while True:
+                rdata += self.connection.recv(1024)
+
+                if rdata[-3:] == b"END":
+                    break
+
+            data = rdata.split(b"END")[-2]
+
+            try:
+                move = int(data.decode())
+            except Exception as ex:
+                change_error_message("Remote" + ex)
+                self.connection.send(f"8{self.current_player}{self.board}".encode() + b"END")
+                continue
+
+            # right player
+            if self.current_player == self.starting_player:
+                change_error_message("Remote" + "not their turn")
+                self.connection.send(f"7{self.current_player}{''.join(self.board)}".encode() + b"END")
+                continue
+
+            # try move
+            self.status, self.current_player, self.board = self.game.send(move)
+
+            # send response
+            self.connection.send(f"{self.status}{self.current_player}{''.join(self.board)}".encode() + b"END")
+
+            set_board(self.board, self.window_game.buttons_spots)
+            # set messages
+
+    def remote_game_local_move(self, move):
+        if self.current_player == self.starting_player:
+            status, current_player, board = self.game.send(move)
+            if status == 0:
+                self.connection.send(f"{self.status}{self.current_player}{''.join(self.board)}".encode() + b"END")
+            else:
+                change_error_message(status)
+        else:
+            change_error_message("not your turn")
+
+class ClientGame:
+    def __init__(self, window_game, connection):
+        self.connection = connection
+        self.window_game = window_game
+        self.myTurn = False
+        self.board = []
+        self.symbol = ""
+
+        self.done = False
+
+    def remote_game_client_move(self, move):
+        if isinstance(move, int) and 1 <= move <= 9 and self.myTurn:
+            self.connection.send(str(move).encode() + b"END")
+
+    def get_and_update(self):
+        first = True
+        while True:
+            rdata = ""
+            while True:
+                rdata += self.connection.recv(1024)
+
+                if rdata[-3:] == b"END":
+                    break
+
+            if first:
+                # get initial conditions
+                data = rdata.split(b"END")[0]
+            else:
+                data = rdata.split(b"END")[-2]
+
+            try:
+                status, current_player, board_str = data[0], data[1], data[2:11]
+                board = board_str.split("")
+                if first:
+                    self.symbol = current_player
+            except:
+                print("test")
+                # send invalid input to provoke another message of current game state
+                self.connection.send("0".encode() + b"END")
+                continue
+
+            if self.symbol == current_player:
+                self.myTurn = True
+
+            first = False
+
+            set_board(board, self.window_game.buttons_spots)
+            change_error_message(status + " | " + current_player)
+            #TODO:: set messages from data
+
+
 
 def host_remote_session():
     try:
+        # open socket
+        # bind address
+
+        window_game = GUI_GAME.MainWindow()
+
+        host_game = ServerGame(window_game, game, connection)
+
+        # Buttons initialisieren
+        for i in range(len(window_game.buttons_spots)): 
+            window_game.buttons_spots[i].clicked.connect(partial(move_handler_local, window_game, game_gen, i+1))
+        
+        window_game.ui.pushButton_10.clicked.connect(window_game.close)
+        
+        # start game
+        host_game_loop = Worker(host_game.get_remote_move)
+
         pass # Host a remote game
     except Exception as e:
         change_error_message(e)
